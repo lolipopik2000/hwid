@@ -2,7 +2,7 @@
 repeat wait() until game:IsLoaded()
 
 shared.user = 'lolipopik2000'
-shared.repo = 'Chat-Translator/main/src'
+shared.repo = 'hwid/main/src' 
 shared.entry = 'main.lua'
 
 shared.useBloxstrapRPC = false 
