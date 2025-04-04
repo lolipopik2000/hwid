@@ -1,7 +1,7 @@
 
 repeat wait() until game:IsLoaded()
 
-shared.user = 'sourcersknz'
+shared.user = 'lolipopik2000'
 shared.repo = 'Chat-Translator/main/src'
 shared.entry = 'main.lua'
 
