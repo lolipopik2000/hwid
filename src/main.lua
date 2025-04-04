@@ -1,17 +1,14 @@
---
 shared.import = function(path)
     local import
-            
     local success, res = pcall(function()
-            import = loadstring(
-                        game:HttpGetAsync(
-                            ("https://raw.githubusercontent.com/%s/%s/%s"):format(shared.user, shared.repo, path)
-                        )
-                    )()
-        end)
+        import = loadstring(
+            game:HttpGetAsync(
+                ("https://raw.githubusercontent.com/%s/%s/%s"):format(shared.user, shared.repo, path)
+            )
+        )()
+    end)
 
-    if not success then error(res) end 
-
+    if not success then error(res) end
     return import
 end
 
@@ -47,10 +44,11 @@ shared.info('Everything mandetory is now imported. Beginning...')
 local isoCodes = shared.import('modules/isoCodes.lua')
 shared.info('Currently supported isoCodes:', shared.HttpService:JSONEncode(shared.isoCodes))
 
-shared.currentISOin = 'en' -- DEFAULT ENGLISH ISO
+-- Default language is English
+shared.currentISOin = 'en'
 shared.translateIn = true
-shared.currentISOout = 'en' -- DEFAULT ENGLISH ISO
-shared.translateOut = true 
+shared.currentISOout = 'en'
+shared.translateOut = true
 
 local Translator = shared.import('modules/Translator.lua')
 shared.Translator = Translator
@@ -68,6 +66,8 @@ shared.ChatHandler = ChatHandler
 shared.info('Starting hooks...')
 
 shared.pending = false
+
+-- Hook to intercept chat messages
 function hookmetamethod(obj, met, func)
     setreadonly(getrawmetatable(game), false)
     local old = getrawmetatable(game).__namecall
@@ -81,7 +81,17 @@ function hookmetamethod(obj, met, func)
     setreadonly(getrawmetatable(game), true)
 end
 
+-- Function to handle message translation
+local function handleTranslation(msg)
+    local result = ChatHandler:Handle(msg)
+    shared.info('Got result from ChatHandler:', result)
+    if result ~= nil and next(result) ~= nil then
+        return result[1]
+    end
+    return msg
+end
 
+-- Hooking chat message events
 if shared.Players.LocalPlayer.PlayerGui:FindFirstChild('Chat') then 
     local events = shared.ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
     local sayMessageRequest = events:FindFirstChild('SayMessageRequest') 
@@ -96,48 +106,42 @@ if shared.Players.LocalPlayer.PlayerGui:FindFirstChild('Chat') then
         shared.pending = false
     end
 
-
     events:WaitForChild("OnMessageDoneFiltering").OnClientEvent:Connect(function(data)
         if data == nil then return end
-        if data.FromSpeaker == shared.Players.LocalPlayer.Name then return end -- Already hooked this 😎
+        if data.FromSpeaker == shared.Players.LocalPlayer.Name then return end 
 
-        shared.info('Intercepted message:',data.Message,' | ',data.FromSpeaker)
+        shared.info('Intercepted message:', data.Message, ' | ', data.FromSpeaker)
 
         local msg = data.Message
 
-        local result
-        shared.translating = true
-        task.spawn(function()
-            result = ChatHandler:Handle(msg, false)
-            shared.info('Got result from ChatHandler:',result)
+        -- Check for >ru or >en commands
+        if msg:sub(1, 3) == '>ru' then
+            shared.currentISOin = 'ru'
+            shared.currentISOout = 'ru'
+            shared.info('Language set to Russian.')
+            return
+        elseif msg:sub(1, 3) == '>en' then
+            shared.currentISOin = 'en'
+            shared.currentISOout = 'en'
+            shared.info('Language set to English.')
+            return
+        end
 
-            if result ~= nil and next(result) ~= nil and result[1] ~= msg then 
-                local text = result[1]
-                local lang = result[2]
-                ChatHandler.ChatNotify(`([{lang}] Translation: {text})`)
-            end 
-        end)
+        local result = handleTranslation(msg)
 
-        shared.info('Translation-Thread was created...')
+        if result ~= nil then
+            ChatHandler.ChatNotify(`[Translation] {result}`)
+        end
     end)
 
     hookmetamethod(sayMessageRequest, "FireServer", function(msg, to)
-        shared.info('Intercepted message:',msg,' | ',to)
+        shared.info('Intercepted message:', msg, ' | ', to)
         shared.pending = true
-        local result
-
-        shared.translating = true
-        task.spawn(function()
-            result = ChatHandler:Handle(msg)
-            shared.info('Got result from ChatHandler:',result)
-            if result ~= nil and next(result) ~= nil then
-                local text = result[1]
-                sayMsg(text, to) 
-            end 
-            shared.pending = false
-        end)
-
-        shared.info('Translation-Thread was created...')
+        local result = handleTranslation(msg)
+        if result ~= nil then
+            sayMsg(result, to)
+        end
+        shared.pending = false
         return
     end)
 else
@@ -148,39 +152,36 @@ else
     shared.info('Game is using new chat method...')
 
     main_channel.OnIncomingMessage = function(msg)
-        if msg.Metadata == 'system' then return end -- Otherwise we get a overflow 😶‍🌫️
-        
-        if msg.Text == '' then return end -- Debouncing ☠️
+        if msg.Metadata == 'system' then return end 
 
-        shared.info('Intercepted message:',msg.Text,' | ',tostring(msg.TextSource))
+        if msg.Text == '' then return end
+
+        shared.info('Intercepted message:', msg.Text, ' | ', tostring(msg.TextSource))
 
         local md = ChatHandler.TextPrefixfromColor3(ChatHandler.getColorfromHash(tostring(msg.TextSource)))
         msg.PrefixText = `<font color="{md}">{tostring(msg.TextSource)}:</font>`
 
-
         local isSelf = tostring(msg.TextSource) == shared.Players.LocalPlayer.Name
 
         if isSelf then 
-            local result = ChatHandler:Handle(msg.Text)
-            shared.info('Got result from ChatHandler:',result)
+            local result = handleTranslation(msg.Text)
+            shared.info('Got result from ChatHandler:', result)
             if result ~= nil and next(result) ~= nil then
-                msg.Text = result[1]
+                msg.Text = result
             else
                 msg.Text = ''
-            end 
-            shared.pending = false
+            end
         else
-            local result = ChatHandler:Handle(msg.Text, false)
-            shared.info('Got result from ChatHandler:',result)
-            if result ~= nil and next(result) ~= nil and result[1] ~= msg.Text then
-                local lang = result[2]
-                local text = result[1]
+            local result = handleTranslation(msg.Text)
+            shared.info('Got result from ChatHandler:', result)
+            if result ~= nil and next(result) ~= nil then
+                local text = result
                 task.delay(0.5, function()
-                    main_channel:DisplaySystemMessage(`([{lang}] Translation: {text})`, 'system')
+                    main_channel:DisplaySystemMessage(`[Translation] {text}`, 'system')
                 end)
-            end 
-            shared.pending = false
+            end
         end
+        shared.pending = false
     end
 end
 
