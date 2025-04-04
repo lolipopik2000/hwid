@@ -39,15 +39,14 @@ if not ExploitSupport:Test(hookmetamethod, false) or not ExploitSupport:Test(hoo
     error('Exploit is not supported!')
 end
 
-shared.info('Everything mandetory is now imported. Beginning...')
+shared.info('Everything mandatory is now imported. Beginning...')
 
 local isoCodes = shared.import('modules/isoCodes.lua')
 shared.info('Currently supported isoCodes:', shared.HttpService:JSONEncode(shared.isoCodes))
 
--- Default language is English
 shared.currentISOin = 'en'
 shared.translateIn = true
-shared.currentISOout = 'en'
+shared.currentISOout = 'ru'  -- Принудительно устанавливаем язык вывода на русский
 shared.translateOut = true
 
 local Translator = shared.import('modules/Translator.lua')
@@ -67,7 +66,6 @@ shared.info('Starting hooks...')
 
 shared.pending = false
 
--- Hook to intercept chat messages
 function hookmetamethod(obj, met, func)
     setreadonly(getrawmetatable(game), false)
     local old = getrawmetatable(game).__namecall
@@ -81,8 +79,9 @@ function hookmetamethod(obj, met, func)
     setreadonly(getrawmetatable(game), true)
 end
 
--- Function to handle message translation
 local function handleTranslation(msg)
+    -- Принудительно устанавливаем язык вывода на русский
+    shared.currentISOout = 'ru'
     local result = ChatHandler:Handle(msg)
     shared.info('Got result from ChatHandler:', result)
     if result ~= nil and next(result) ~= nil then
@@ -91,7 +90,6 @@ local function handleTranslation(msg)
     return msg
 end
 
--- Hooking chat message events
 if shared.Players.LocalPlayer.PlayerGui:FindFirstChild('Chat') then 
     local events = shared.ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
     local sayMessageRequest = events:FindFirstChild('SayMessageRequest') 
