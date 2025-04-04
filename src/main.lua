@@ -47,9 +47,9 @@ shared.info('Everything mandetory is now imported. Beginning...')
 local isoCodes = shared.import('modules/isoCodes.lua')
 shared.info('Currently supported isoCodes:', shared.HttpService:JSONEncode(shared.isoCodes))
 
-shared.currentISOin = 'en' -- DEFAULT ENGLISH ISO
+shared.currentISOin = 'ru' -- DEFAULT ENGLISH ISO
 shared.translateIn = true
-shared.currentISOout = 'ru' -- DEFAULT ENGLISH ISO
+shared.currentISOout = 'en' -- DEFAULT ENGLISH ISO
 shared.translateOut = true 
 
 local Translator = shared.import('modules/Translator.lua')
