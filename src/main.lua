@@ -44,9 +44,9 @@ shared.info('Everything mandatory is now imported. Beginning...')
 local isoCodes = shared.import('modules/isoCodes.lua')
 shared.info('Currently supported isoCodes:', shared.HttpService:JSONEncode(shared.isoCodes))
 
-shared.currentISOin = 'en'
+shared.currentISOin = 'en'  -- Входной язык (для других игроков)
 shared.translateIn = true
-shared.currentISOout = 'ru'  -- Принудительно устанавливаем язык вывода на русский
+shared.currentISOout = 'ru'  -- Язык для перевода и вывода сообщений (на русском)
 shared.translateOut = true
 
 local Translator = shared.import('modules/Translator.lua')
@@ -79,9 +79,17 @@ function hookmetamethod(obj, met, func)
     setreadonly(getrawmetatable(game), true)
 end
 
-local function handleTranslation(msg)
-    -- Принудительно устанавливаем язык вывода на русский
-    shared.currentISOout = 'ru'
+local function handleTranslation(msg, isLocalPlayer)
+    -- Если это сообщение локального игрока, переводим его на английский
+    if isLocalPlayer then
+        shared.currentISOin = 'ru'  -- Устанавливаем входной язык на русский (чтобы перевести на английский)
+        shared.currentISOout = 'en'  -- Язык вывода на английский
+    else
+        -- Для остальных игроков переводим их сообщения на русский
+        shared.currentISOin = 'en'  -- Входной язык - английский
+        shared.currentISOout = 'ru'  -- Язык вывода - русский
+    end
+    
     local result = ChatHandler:Handle(msg)
     shared.info('Got result from ChatHandler:', result)
     if result ~= nil and next(result) ~= nil then
@@ -125,7 +133,7 @@ if shared.Players.LocalPlayer.PlayerGui:FindFirstChild('Chat') then
             return
         end
 
-        local result = handleTranslation(msg)
+        local result = handleTranslation(msg, false)
 
         if result ~= nil then
             ChatHandler.ChatNotify(`[Translation] {result}`)
@@ -135,7 +143,7 @@ if shared.Players.LocalPlayer.PlayerGui:FindFirstChild('Chat') then
     hookmetamethod(sayMessageRequest, "FireServer", function(msg, to)
         shared.info('Intercepted message:', msg, ' | ', to)
         shared.pending = true
-        local result = handleTranslation(msg)
+        local result = handleTranslation(msg, true)  -- Обрабатываем сообщение локального игрока
         if result ~= nil then
             sayMsg(result, to)
         end
@@ -162,7 +170,7 @@ else
         local isSelf = tostring(msg.TextSource) == shared.Players.LocalPlayer.Name
 
         if isSelf then 
-            local result = handleTranslation(msg.Text)
+            local result = handleTranslation(msg.Text, true)  -- Сообщение локального игрока переводится на английский
             shared.info('Got result from ChatHandler:', result)
             if result ~= nil and next(result) ~= nil then
                 msg.Text = result
@@ -170,7 +178,7 @@ else
                 msg.Text = ''
             end
         else
-            local result = handleTranslation(msg.Text)
+            local result = handleTranslation(msg.Text, false)  -- Сообщения других игроков переводятся на русский
             shared.info('Got result from ChatHandler:', result)
             if result ~= nil and next(result) ~= nil then
                 local text = result
